@@ -98,7 +98,7 @@ dla_rubik_set_producer(int32_t group_id, int32_t __unused)
 	rubik_reg_write(S_POINTER, reg);
 }
 
-int
+int32_t
 dla_rubik_enable(struct dla_processor_group *group)
 {
 	uint32_t reg;
@@ -245,7 +245,7 @@ exit:
 	RETURN(ret);
 }
 
-int
+int32_t
 dla_rubik_is_ready(struct dla_processor *processor,
 			     struct dla_processor_group *group)
 {
@@ -265,7 +265,7 @@ dla_rubik_dump_config(struct dla_processor_group *group)
 	dla_debug_rubik_op_desc(rubik_op, group->roi_index);
 }
 
-int
+int32_t
 dla_rubik_program(struct dla_processor_group *group)
 {
 	int32_t ret = 0;

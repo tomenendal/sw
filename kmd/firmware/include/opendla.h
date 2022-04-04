@@ -28,7 +28,7 @@
 
 #ifndef __OPENDLA_H_
 #define __OPENDLA_H_
-
+#define DLA_2_CONFIG
 #ifdef DLA_2_CONFIG
 #include <opendla_small.h>
 #else

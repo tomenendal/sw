@@ -1,0 +1,2 @@
+cargo:rerun-if-changed=src/ffi.rs
+cargo:rerun-if-changed=src/status_core.proto

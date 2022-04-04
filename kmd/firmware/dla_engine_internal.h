@@ -144,9 +144,9 @@ dla_op_completion(struct dla_processor *processor,
 
 int32_t
 dla_read_lut(struct dla_engine *engine, int16_t index, void *dst);
-int
+int32_t
 dla_enable_intr(uint32_t mask);
-int
+int32_t
 dla_disable_intr(uint32_t mask);
 int
 utils_get_free_group(struct dla_processor *processor,
@@ -171,11 +171,11 @@ dla_read_input_address(struct dla_data_cube *data,
  */
 void
 dla_bdma_set_producer(int32_t group_id, int32_t rdma_group_id);
-int
+int32_t
 dla_bdma_enable(struct dla_processor_group *group);
-int
+int32_t
 dla_bdma_program(struct dla_processor_group *group);
-int
+int32_t
 dla_bdma_is_ready(struct dla_processor *processor,
 			    struct dla_processor_group *group);
 void
@@ -203,11 +203,11 @@ dla_bdma_dump_stat(struct dla_processor *processor) {}
  */
 void
 dla_conv_set_producer(int32_t group_id, int32_t rdma_group_id);
-int
+int32_t
 dla_conv_enable(struct dla_processor_group *group);
-int
+int32_t
 dla_conv_program(struct dla_processor_group *group);
-int
+int32_t
 dla_conv_is_ready(struct dla_processor *processor,
 			    struct dla_processor_group *group);
 void
@@ -235,11 +235,11 @@ dla_conv_dump_stat(struct dla_processor *processor) {}
  */
 void
 dla_sdp_set_producer(int32_t group_id, int32_t rdma_group_id);
-int
+int32_t
 dla_sdp_enable(struct dla_processor_group *group);
-int
+int32_t
 dla_sdp_program(struct dla_processor_group *group);
-int
+int32_t
 dla_sdp_is_ready(struct dla_processor *processor,
 			   struct dla_processor_group *group);
 void
@@ -267,11 +267,11 @@ dla_sdp_dump_stat(struct dla_processor *processor) {}
  */
 void
 dla_pdp_set_producer(int32_t group_id, int32_t rdma_group_id);
-int
+int32_t
 dla_pdp_enable(struct dla_processor_group *group);
-int
+int32_t
 dla_pdp_program(struct dla_processor_group *group);
-int
+int32_t
 dla_pdp_is_ready(struct dla_processor *processor,
 			   struct dla_processor_group *group);
 void
@@ -299,11 +299,11 @@ dla_pdp_dump_stat(struct dla_processor *processor) {}
  */
 void
 dla_cdp_set_producer(int32_t group_id, int32_t rdma_group_id);
-int
+int32_t
 dla_cdp_enable(struct dla_processor_group *group);
-int
+int32_t
 dla_cdp_program(struct dla_processor_group *group);
-int
+int32_t
 dla_cdp_is_ready(struct dla_processor *processor,
 			   struct dla_processor_group *group);
 void
@@ -331,11 +331,11 @@ dla_cdp_dump_stat(struct dla_processor *processor) {}
  */
 void
 dla_rubik_set_producer(int32_t group_id, int32_t rdma_group_id);
-int
+int32_t
 dla_rubik_enable(struct dla_processor_group *group);
-int
+int32_t
 dla_rubik_program(struct dla_processor_group *group);
-int
+int32_t
 dla_rubik_is_ready(struct dla_processor *processor,
 			     struct dla_processor_group *group);
 void

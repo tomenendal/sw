@@ -82,7 +82,7 @@ dla_bdma_set_producer(int32_t group_id, int32_t rdma_group_id)
 	 */
 }
 
-int
+int32_t
 dla_bdma_enable(struct dla_processor_group *group)
 {
 	struct dla_engine *engine = dla_get_engine();
@@ -202,7 +202,7 @@ exit:
 	RETURN(ret);
 }
 
-int
+int32_t
 dla_bdma_is_ready(struct dla_processor *processor,
 			    struct dla_processor_group *group)
 {
@@ -236,7 +236,7 @@ dla_bdma_dump_config(struct dla_processor_group *group)
 	dla_debug_bdma_op_desc(bdma_op, group->roi_index);
 }
 
-int
+int32_t
 dla_bdma_program(struct dla_processor_group *group)
 {
 	int32_t i;

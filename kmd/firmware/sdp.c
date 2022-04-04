@@ -179,6 +179,7 @@ void
 dla_sdp_set_producer(int32_t group_id, int32_t rdma_group_id)
 {
 	uint32_t reg;
+    //dla_isr_handler(dla_get_engine());
 
 	/**
 	 * set producer pointer for all sub-modules
@@ -189,7 +190,7 @@ dla_sdp_set_producer(int32_t group_id, int32_t rdma_group_id)
 	sdp_rdma_reg_write(S_POINTER, reg);
 }
 
-int
+int32_t
 dla_sdp_enable(struct dla_processor_group *group)
 {
 	uint32_t reg;
@@ -275,6 +276,8 @@ processor_sdp_program(struct dla_processor_group *group)
 	struct dla_sdp_op_desc *sdp_op;
 	struct dla_sdp_surface_desc *sdp_surface;
 
+    //dla_isr_handler(dla_get_engine());
+
 	dla_trace("Enter: %s", __func__);
 	atom_size = engine->config_data->atom_size;
 
@@ -292,6 +295,7 @@ processor_sdp_program(struct dla_processor_group *group)
 
 	/* load address */
 	if (!fly) {
+        src_addr = 0;
 		ret = dla_read_input_address(&sdp_surface->src_data,
 						&src_addr,
 						group->op_desc->index,
@@ -303,6 +307,7 @@ processor_sdp_program(struct dla_processor_group *group)
 	}
 
 	if (out_dma_ena) {
+	    dst_addr = 0;
 		dla_get_dma_cube_address(engine->driver_context,
 					engine->task->task_data,
 					sdp_surface->dst_data.address,
@@ -324,6 +329,7 @@ processor_sdp_program(struct dla_processor_group *group)
 	y_rdma_ena &= (y_op->mode != SDP_OP_PER_LAYER);
 
 	if (x1_rdma_ena) {
+	    x1_addr = 0;
 		dla_get_dma_cube_address(engine->driver_context,
 					engine->task->task_data,
 					sdp_surface->x1_data.address,
@@ -333,6 +339,7 @@ processor_sdp_program(struct dla_processor_group *group)
 		CHECK_ALIGN(x1_addr, atom_size);
 	}
 	if (x2_rdma_ena) {
+	    x2_addr = 0;
 		dla_get_dma_cube_address(engine->driver_context,
 					engine->task->task_data,
 					sdp_surface->x2_data.address,
@@ -342,6 +349,7 @@ processor_sdp_program(struct dla_processor_group *group)
 		CHECK_ALIGN(x2_addr, atom_size);
 	}
 	if (y_rdma_ena) {
+	    y_addr = 0;
 		dla_get_dma_cube_address(engine->driver_context,
 					engine->task->task_data,
 					sdp_surface->y_data.address,
@@ -353,6 +361,8 @@ processor_sdp_program(struct dla_processor_group *group)
 
 	reg = (map_fly[0] << SHIFT(SDP_RDMA_D_FEATURE_MODE_CFG_0, FLYING_MODE));
 	sdp_rdma_reg_write(D_FEATURE_MODE_CFG, reg);
+
+    //dla_isr_handler(dla_get_engine());
 
 	reg = (map_ena[1] << SHIFT(SDP_RDMA_D_BRDMA_CFG_0, BRDMA_DISABLE));
 	sdp_rdma_reg_write(D_BRDMA_CFG, reg);
@@ -727,10 +737,11 @@ processor_sdp_program(struct dla_processor_group *group)
 
 exit:
 	dla_trace("Exit: %s", __func__);
+    //dla_isr_handler(dla_get_engine());
 	RETURN(ret);
 }
 
-int
+int32_t
 dla_sdp_is_ready(struct dla_processor *processor,
 			   struct dla_processor_group *group)
 {
@@ -798,7 +809,7 @@ dla_sdp_dump_config(struct dla_processor_group *group)
 	dla_debug_sdp_op_desc(sdp_op, group->roi_index);
 }
 
-int
+int32_t
 dla_sdp_program(struct dla_processor_group *group)
 {
 	int32_t ret;

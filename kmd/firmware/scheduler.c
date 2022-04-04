@@ -49,6 +49,16 @@ dla_read_address_list(struct dla_engine *engine)
 {
 	RETURN(0);
 }
+void*
+dla_trap_call(void)
+{
+    struct dla_engine *engine;
+    engine = dla_get_engine();
+    //struct riscv_device *nvdla_dev = (struct riscv_device *)(engine->driver_context);
+    //nvdla_dev->irq = 1;
+    dla_isr_handler(dla_get_engine());
+    return engine->driver_context;
+}
 
 int32_t
 dla_read_lut(struct dla_engine *engine, int16_t index, void *dst)
@@ -949,6 +959,7 @@ dla_initiate_processors(struct dla_engine *engine)
 
 		processor = &engine->processors[consumer->op_type];
 
+        //dla_isr_handler(dla_get_engine());
 		ret = dla_submit_operation(processor, consumer, 0);
 		dla_put_op_desc(consumer);
 		if (ret && ret != ERR(PROCESSOR_BUSY)) {
@@ -981,8 +992,10 @@ dla_handle_events(struct dla_processor *processor)
 
 	group_id = !processor->last_group;
 
+
 	for (j = 0; j < DLA_NUM_GROUPS; j++) {
 		group = &processor->groups[group_id];
+
 
 		if ((1 << DLA_EVENT_CDMA_WT_DONE) & group->events) {
 			dla_info("Handle cdma weight done event, processor %s "
@@ -1026,10 +1039,11 @@ dla_handle_events(struct dla_processor *processor)
 	}
 exit:
 	dla_debug("Exit:%s, ret:%x\n", __func__, ret);
+    //dla_isr_handler(dla_get_engine());
 	RETURN(ret);
 }
 
-int
+int32_t
 dla_process_events(void *engine_context, uint32_t *task_complete)
 {
 	int32_t i;
@@ -1063,7 +1077,7 @@ dla_process_events(void *engine_context, uint32_t *task_complete)
  * 2. Initiate processors with head of list for same op
  * 3. Start processing events received
  */
-int
+int32_t
 dla_execute_task(void *engine_context, void *task_data, void *config_data)
 {
 	int32_t ret;

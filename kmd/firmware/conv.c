@@ -201,6 +201,7 @@ void
 dla_conv_set_producer(int32_t group_id, int32_t rdma_group_id)
 {
 	uint32_t reg;
+    //dla_isr_handler(dla_get_engine());
 
 	/* set producer pointer for all sub-modules */
 	reg = group_id << SHIFT(CACC_S_POINTER_0, PRODUCER);
@@ -211,7 +212,7 @@ dla_conv_set_producer(int32_t group_id, int32_t rdma_group_id)
 	cdma_reg_write(S_POINTER, reg);
 }
 
-int
+int32_t
 dla_conv_enable(struct dla_processor_group *group)
 {
 	uint32_t reg;
@@ -263,6 +264,7 @@ processor_conv_program(struct dla_processor_group *group)
 	struct dla_engine *engine = dla_get_engine();
 	struct dla_conv_op_desc *conv_op;
 	struct dla_conv_surface_desc *conv_surface;
+    //dla_isr_handler(dla_get_engine());
 
 	dla_trace("Enter: %s", __func__);
 
@@ -742,7 +744,7 @@ exit:
 	RETURN(ret);
 }
 
-int
+int32_t
 dla_conv_is_ready(struct dla_processor *processor,
 			    struct dla_processor_group *group)
 {
@@ -762,7 +764,7 @@ dla_conv_dump_config(struct dla_processor_group *group)
 	dla_debug_conv_op_desc(conv_op, group->roi_index);
 }
 
-int
+int32_t
 dla_conv_program(struct dla_processor_group *group)
 {
 	int32_t ret;

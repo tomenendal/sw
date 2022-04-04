@@ -44,6 +44,10 @@ int32_t dla_isr_handler(void *engine_data)
 	mask = glb_reg_read(S_INTR_MASK);
 	reg = glb_reg_read(S_INTR_STATUS);
 
+    /*if ((reg)==0){
+        RETURN(0);
+    }*/
+
 	dla_trace("Enter: dla_isr_handler, reg:%x, mask:%x\n", reg, mask);
 	if (reg & MASK(GLB_S_INTR_STATUS_0, CACC_DONE_STATUS0)) {
 		processor = &engine->processors[DLA_OP_CONV];
@@ -111,7 +115,8 @@ int32_t dla_isr_handler(void *engine_data)
 		group->events |= (1 << DLA_EVENT_CDMA_DT_DONE);
 	}
 	if (reg & MASK(GLB_S_INTR_STATUS_0, CDMA_DAT_DONE_STATUS1)) {
-		processor = &engine->processors[DLA_OP_CONV];
+        //if (reg==131072){RETURN(0);}
+        processor = &engine->processors[DLA_OP_CONV];
 		group = &processor->groups[1];
 		group->events |= (1 << DLA_EVENT_CDMA_DT_DONE);
 	}

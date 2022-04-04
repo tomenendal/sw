@@ -98,6 +98,7 @@ void
 dla_cdp_set_producer(int32_t group_id, int32_t rdma_group_id)
 {
 	uint32_t reg;
+    //dla_isr_handler(dla_get_engine());
 
 	/**
 	 * set producer pointer for all sub-modules
@@ -108,7 +109,7 @@ dla_cdp_set_producer(int32_t group_id, int32_t rdma_group_id)
 	cdp_rdma_reg_write(S_POINTER, reg);
 }
 
-int
+int32_t
 dla_cdp_enable(struct dla_processor_group *group)
 {
 	uint32_t reg;
@@ -157,6 +158,7 @@ processor_cdp_program(struct dla_processor_group *group)
 	struct dla_engine *engine = dla_get_engine();
 	struct dla_cdp_op_desc *cdp_op;
 	struct dla_cdp_surface_desc *cdp_surface;
+    //dla_isr_handler(dla_get_engine());
 
 	dla_debug("Enter: %s\n", __func__);
 
@@ -296,7 +298,7 @@ exit:
 	RETURN(ret);
 }
 
-int
+int32_t
 dla_cdp_is_ready(struct dla_processor *processor,
 		 struct dla_processor_group *group)
 {
@@ -365,7 +367,7 @@ dla_cdp_dump_config(struct dla_processor_group *group)
 	dla_debug_cdp_op_desc(cdp_op, group->roi_index);
 }
 
-int
+int32_t
 dla_cdp_program(struct dla_processor_group *group)
 {
 	int32_t ret;

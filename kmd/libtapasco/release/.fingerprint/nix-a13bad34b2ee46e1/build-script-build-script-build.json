@@ -1,0 +1,1 @@
+{"rustc":14088978341743255589,"features":"[]","target":10088282520713642473,"profile":15498268921388225519,"path":10310222307146766156,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"release/.fingerprint/nix-a13bad34b2ee46e1/dep-build-script-build-script-build"}}],"rustflags":["--print=native-static-libs"],"metadata":7592889295042356366,"config":0}

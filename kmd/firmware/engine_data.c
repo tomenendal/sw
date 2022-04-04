@@ -28,7 +28,7 @@
 
 #include <nvdla_interface.h>
 #include <dla_interface.h>
-#include <dla_fw_version.h>
+//#include <dla_fw_version.h>
 
 #include "dla_engine_internal.h"
 
@@ -290,7 +290,7 @@ int32_t dla_register_driver(void **engine_context, void *driver_context)
 
 	dla_init_op_cache(&engine);
 
-	dla_info("%d . %d . %d\n", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_SUBMINOR);
+	//dla_info("%d . %d . %d\n", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_SUBMINOR);
 
 	RETURN(0);
 }
