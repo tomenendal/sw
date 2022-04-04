@@ -29,6 +29,7 @@
 #include "ErrorMacros.h"
 #include "RuntimeTest.h"
 
+
 #include "main.h"
 
 #include "half.h"
@@ -38,22 +39,49 @@
 #include <sstream>
 #include <string>
 
-NvDlaError DIMG2DlaBuffer(const NvDlaImage* image, void** pBuffer)
+NvDlaError DIMG2DlaBuffer(const NvDlaImage* image, TestInfo* i, void** pBuffer)
 {
     if (!image || !(*pBuffer))
         ORIGINATE_ERROR(NvDlaError_BadParameter);
 
-    memcpy(*pBuffer, image->m_pData, image->m_meta.size);
+    //memcpy(*pBuffer, image->m_pData, image->m_meta.size);
+    NvDlaDebugPrintf("sending Image image \n");
+    image->printInfo();
+    image->printBuffer(1);
+    NvDlaDebugPrintf("to %d \n", *pBuffer);
+    nvdla::IRuntime* runtime = i->runtime;
+    NvU8 *zero = (NvU8*)malloc(image->m_meta.size);
+    memset(zero,0,image->m_meta.size);
+    runtime->TapascoCopyTo(*pBuffer, zero, image->m_meta.size);
+    NvDlaDebugPrintf("zeroed \n");
+    runtime->TapascoCopyTo(*pBuffer, image->m_pData, image->m_meta.size);
+    NvDlaDebugPrintf("sent \n");
+    //NvDlaImage* backimage = new NvDlaImage();
+    //backimage->m_pData = NvDlaAlloc(image->m_meta.size);
+    //NvDlaDebugPrintf("copyback image \n");
+    //runtime->TapascoCopyFrom(*pBuffer, backimage->m_pData, image->m_meta.size);
+    //memcpy(backimage->m_pData, image->m_pData, image->m_meta.size);
+    //backimage->printInfo();
+    //backimage->printBuffer(1);
+    //backImage->printBuffer(true);
+    //NvDlaDebugPrintf("backimage done \n");
+    //memcpy(i->inputHandle, image->m_pData, image->m_meta.size);
+
 
     return NvDlaSuccess;
 }
 
-NvDlaError DlaBuffer2DIMG(void** pBuffer, NvDlaImage* image)
+NvDlaError DlaBuffer2DIMG(void** pBuffer, TestInfo* i, NvDlaImage* image)
 {
     if (!(*pBuffer) || !image)
         ORIGINATE_ERROR(NvDlaError_BadParameter);
 
-    memcpy(image->m_pData, *pBuffer, image->m_meta.size);
+    //memcpy(image->m_pData, *pBuffer, image->m_meta.size);
+    //nvdla::IRuntime* runtime = i->runtime;
+    //runtime->TapascoCopyFrom(*pBuffer, image->m_pData, image->m_meta.size);
+    memcpy(image->m_pData, i->outputHandle, image->m_meta.size);
+    image->printInfo();
+    image->printBuffer(1);
 
     return NvDlaSuccess;
 }
@@ -157,7 +185,7 @@ NvDlaError createImageCopy(const TestAppArgs* appArgs, const NvDlaImage* in, con
     if (in->m_meta.height != out->m_meta.height )
         ORIGINATE_ERROR(NvDlaError_BadParameter, "Mismatched height: %u != %u", in->m_meta.height, out->m_meta.height);
     if (in->m_meta.channel != out->m_meta.channel )
-        REPORT_ERROR(NvDlaError_BadParameter, "Mismatched channel: %u != %u", in->m_meta.channel, out->m_meta.channel);
+        REPORT_ERROR(NvDlaError_BadParameter, "Mismatched channel: %u != %u address: %u", in->m_meta.channel, out->m_meta.channel,(void*)outTensorDesc);
 
     switch(outTensorDesc->pixelFormat)
     {

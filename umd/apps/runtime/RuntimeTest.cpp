@@ -46,6 +46,7 @@
 #include <cstdio> // snprintf, fopen
 #include <string>
 
+
 #define OUTPUT_DIMG "output.dimg"
 
 using namespace half_float;
@@ -103,9 +104,9 @@ static NvDlaError copyImageToInputTensor
 
     PROPAGATE_ERROR(createImageCopy(appArgs, R8Image, tensorDesc, tensorImage));
 
-    //tensorImage->printBuffer(true);  /* Print the input Buffer */ 
+    tensorImage->printBuffer(true);  /* Print the input Buffer */
 
-    PROPAGATE_ERROR(DIMG2DlaBuffer(tensorImage, pImgBuffer));
+    PROPAGATE_ERROR(DIMG2DlaBuffer(tensorImage, i, pImgBuffer));
 
 fail:
     if (R8Image != NULL && R8Image->m_pData != NULL)
@@ -120,13 +121,14 @@ static NvDlaError prepareOutputTensor
     nvdla::IRuntime::NvDlaTensor* pTDesc,
     NvDlaImage* pOutImage,
     void** pOutBuffer,
-    const TestAppArgs* appArgs
+    const TestAppArgs* appArgs,
+    TestInfo* i
 )
 {
     NvDlaError e = NvDlaSuccess;
 
     PROPAGATE_ERROR_FAIL(Tensor2DIMG(appArgs, pTDesc, pOutImage));
-    PROPAGATE_ERROR_FAIL(DIMG2DlaBuffer(pOutImage, pOutBuffer));
+    PROPAGATE_ERROR_FAIL(DIMG2DlaBuffer(pOutImage, i, pOutBuffer));
 
 fail:
     return e;
@@ -238,7 +240,10 @@ NvDlaError setupOutputBuffer
     pOutputImage = i->outputImage;
     if (i->outputImage == NULL)
         ORIGINATE_ERROR_FAIL(NvDlaError_BadParameter, "NULL Output image");
-    PROPAGATE_ERROR_FAIL(prepareOutputTensor(&tDesc, pOutputImage, pOutputBuffer, appArgs));
+    PROPAGATE_ERROR_FAIL(Tensor2DIMG(appArgs, &tDesc, pOutputImage)); //new from prepareOutputTensor
+    PROPAGATE_ERROR_FAIL(DIMG2DlaBuffer(pOutputImage, i, pOutputBuffer));
+    //PROPAGATE_ERROR_FAIL(runtime->TapascoCopyTo(*pOutputBuffer,pOutputImage->m_pData, pOutputImage->m_meta.size)); //DIMG2DlaBuffer skip to access runtime functions
+    //PROPAGATE_ERROR_FAIL(prepareOutputTensor(&tDesc, pOutputImage, pOutputBuffer, appArgs));
 
     if (!runtime->bindOutputTensor(0, hMem))
         ORIGINATE_ERROR_FAIL(NvDlaError_BadParameter, "runtime->bindOutputTensor() failed");
@@ -393,13 +398,13 @@ NvDlaError runTest(const TestAppArgs* appArgs, TestInfo* i)
     PROPAGATE_ERROR_FAIL(setupOutputBuffer(appArgs, i, &pOutputBuffer));
     NvDlaDebugPrintf("submitting tasks...\n");
     clock_gettime(CLOCK_MONOTONIC, &before);
-    if (!runtime->submit())
+    if (!runtime->submit(appArgs->binaryName))
         ORIGINATE_ERROR(NvDlaError_BadParameter, "runtime->submit() failed");
 
     clock_gettime(CLOCK_MONOTONIC, &after);
     NvDlaDebugPrintf("execution time = %f s\n", get_elapsed_time(&before,&after));
 
-    PROPAGATE_ERROR_FAIL(DlaBuffer2DIMG(&pOutputBuffer, i->outputImage));
+    PROPAGATE_ERROR_FAIL(DlaBuffer2DIMG(&pOutputBuffer, i, i->outputImage));
 
     //i->outputImage->printBuffer(true);   /* Print the output buffer */
 

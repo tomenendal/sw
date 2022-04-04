@@ -38,6 +38,12 @@ struct NvDlaMemDescRec{
     void *handle;
     NvU32 offset;
 };
+struct nvdla_copy_handle {
+    //uint32_t* handle;
+    uint8_t handle[4];
+    //uint32_t offset;
+    uint8_t offset[4];
+};
 typedef struct NvDlaMemDescRec NvDlaMemDesc;
 
 struct NvDlaTaskRec {

@@ -27,7 +27,6 @@
 #
 # libnvdla_runtime
 #
-
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE_CC := $(TOOLCHAIN_PREFIX)gcc

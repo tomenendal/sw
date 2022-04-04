@@ -33,6 +33,19 @@
 #include "dlatypes.h"
 
 #include "nvdla/IType.h"
+#include "nvdla_inf.h"
+#include <fstream>
+#include <memory>
+#include <iterator>
+#include <vector>
+#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+using namespace std;
 
 namespace nvdla
 {
@@ -137,7 +150,11 @@ public:
 
     virtual bool load(NvU8 *buf, int instance) = 0;
     virtual void unload(void) = 0;
+    virtual void read_binary_file(std::string filename, std::vector<char> &buffer) = 0;
     virtual NvDlaError allocateSystemMemory(void **h_mem, NvU64 size, void **pData) = 0;
+    virtual NvDlaError TapascoCopyTo(void* Buffer, void* Data, int size) = 0;
+    virtual NvDlaError TapascoCopyFrom(void* Buffer, void* Data, int size) = 0;
+    virtual NvDlaError TapascoTransmit(NvU32 taskcount, NvDlaTask *tasks, std::string binName) = 0;
     virtual void freeSystemMemory(void *phMem, NvU64 size) = 0;
 
     virtual bool bindInputTensor(int index, void *hMem) = 0;
@@ -153,7 +170,7 @@ public:
     virtual NvDlaError getOutputTensorDesc(int id, NvDlaTensor *) = 0;
     virtual NvDlaError setOutputTensorDesc(int id, const NvDlaTensor *) = 0;
 
-    virtual bool submit() = 0;
+    virtual bool submit(std::string binaryName) = 0;
 
 protected:
     IRuntime();

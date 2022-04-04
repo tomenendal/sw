@@ -46,6 +46,26 @@
 
 #include "ErrorMacros.h"
 
+#include <fstream>
+#include <memory>
+#include <iterator>
+#include <vector>
+#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "tapasco.hpp"
+#include <tuple>
+
+#define PE_ID 1751//48
+
+#define BRAM_SIZE 0x80000
+#define PROGRAM_BRAM_SIZE (BRAM_SIZE - (BRAM_SIZE / 4))
+
+
 using std::vector;
 using std::stringstream;
 using std::string;
@@ -53,8 +73,14 @@ using std::endl;
 using std::map;
 using std::list;
 
+
+
 namespace nvdla
 {
+    using namespace std;
+    using namespace tapasco;
+    Tapasco tapasco;
+    tapasco_handle_t tpc_datablock_mem;
 
 IRuntime::IRuntime() { }
 IRuntime::~IRuntime() { }
@@ -69,10 +95,9 @@ void destroyRuntime(IRuntime *runtime)
 {
     priv::RuntimeFactory::deleteRuntime(runtime);
 }
-
 namespace priv
 {
-
+    std::string *binaryName;
 RuntimeFactory::RuntimePrivPair RuntimeFactory::newRuntime()
 {
     IRuntime *runtime;
@@ -149,6 +174,106 @@ Runtime::~Runtime()
     // Close all device nodes
     NvDlaClose(m_dla_device_handles[0]);
     NvDlaClose(m_dla_device_handles[1]);
+}
+void Runtime::read_binary_file(std::string filename, std::vector<char> &buffer) {
+    int fd = open(filename.c_str(), O_RDONLY);
+    struct stat sb;
+    fstat(fd, &sb);
+    char *buf = (char*)mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    buffer.insert(buffer.end(), buf, buf + sb.st_size);
+    munmap(buf, sb.st_size);
+    close(fd);
+    std::cout << "Finished reading binary file. Received " << buffer.size() << " bytes." << std::endl;
+}
+
+NvDlaError Runtime::TapascoCopyFrom(void* Buffer, void* Data, int size)
+{
+    tapasco_handle_t tmp_handle;
+    tmp_handle = (tapasco_handle_t)(Buffer - 0x80000000);
+    tapasco.copy_from(tmp_handle, (uint8_t *)Data, size);
+    return NvDlaSuccess;
+}
+
+NvDlaError Runtime::TapascoCopyTo(void* Buffer, void* Data, int size)
+{
+    tapasco_handle_t tmp_handle;
+    tmp_handle = (tapasco_handle_t)(Buffer - 0x80000000);
+    tapasco.copy_to((uint8_t *)Data, tmp_handle, size);
+    return NvDlaSuccess;
+}
+NvDlaError Runtime::TapascoTransmit(NvU32 taskcount,NvDlaTask *pTasks, std::string binName)
+{
+    //BUILD ADDRESS LIST STRUCT LIST
+    struct nvdla_copy_handle address_list[taskcount][NVDLA_MAX_BUFFERS_PER_TASK];
+    struct nvdla_copy_handle copy_list[taskcount][NVDLA_MAX_BUFFERS_PER_TASK];
+    uint32_t i;
+
+    for (i = 0; i < taskcount; i++) {
+        uint32_t num_addresses = pTasks[i].num_addresses;
+        uint32_t j;
+
+        for (j = 0; j < num_addresses; j++) {
+            //tmp_handle
+            uint32_t *tmp_handle = (uint32_t *)pTasks[i].address_list[j].handle;
+            address_list[i][j].handle[0] = (((uintptr_t)tmp_handle) & ((uintptr_t)0xFF000000))>>24;
+            address_list[i][j].handle[1] = (((uintptr_t)tmp_handle) & ((uintptr_t)0x00FF0000))>>16;
+            address_list[i][j].handle[2] = (((uintptr_t)tmp_handle) & ((uintptr_t)0x0000FF00))>>8;
+            address_list[i][j].handle[3] = (((uintptr_t)tmp_handle) & ((uintptr_t)0x000000FF));
+
+            //tmp_offset
+            uint64_t tmp_offset = pTasks[i].address_list[j].offset;
+            address_list[i][j].offset[0] = (tmp_offset&0xFF000000)>>24;
+            address_list[i][j].offset[1] = (tmp_offset&0x00FF0000)>>16;
+            address_list[i][j].offset[2] = (tmp_offset&0x0000FF00)>>8;
+            address_list[i][j].offset[3] = (tmp_offset&0x000000FF);
+        }
+    }
+
+    //TAPASCO SEND
+    size_t data_to_transfer = taskcount * NVDLA_MAX_BUFFERS_PER_TASK * sizeof(struct nvdla_mem_handle);
+    NvU8 *zero = (NvU8*)malloc(360);
+    memset(zero,0,360);
+    tpc_datablock_mem = 0xf0e50;
+    tapasco.copy_to((uint8_t*)zero,tpc_datablock_mem,360);
+    tapasco.alloc(tpc_datablock_mem, data_to_transfer);
+    tapasco.copy_to((uint8_t *)address_list, tpc_datablock_mem, data_to_transfer);
+
+    std::vector<char> program_buffer;
+    read_binary_file(binName, program_buffer);
+
+    if (program_buffer.size() > PROGRAM_BRAM_SIZE) {
+        std::cout << "ERROR: Program exceeds BRAM size." << std::endl;
+        exit(1);
+    }
+
+    // Wrap the program buffer into local memory object
+    auto program_buffer_in = makeLocal(makeInOnly(
+            makeWrappedPointer(program_buffer.data(), program_buffer.size())
+    ));
+
+    uint64_t fpga_sum = -1;
+    RetVal<uint64_t> retval(&fpga_sum);
+    uint32_t a = (uint32_t)(tpc_datablock_mem+0x80000000);
+    int b = pTasks->num_addresses;
+    auto job = tapasco.launch(PE_ID,
+                              retval, // return value
+                              program_buffer_in,
+                              a, // Arg 1
+                              b  // Arg 2
+    );
+    cout << "Waiting for RISC-V " << endl;
+    job();
+    cout << "RISC-V return value: " << fpga_sum << endl;
+
+    ///copy everything back
+    for(int i = 0; i < m_copyback_memory.size(); i++)
+    {   void *copyto = std::get<0>(m_copyback_memory[i]);
+        int size = std::get<2>(m_copyback_memory[i]);
+        void *copyfrom = std::get<1>(m_copyback_memory[i])-0x80000000;
+        tapasco.copy_from((tapasco_handle_t)copyfrom,(uint8_t *)copyto, size);
+    }
+
+    return NvDlaSuccess;
 }
 
 bool Runtime::initEMU(void)
@@ -256,6 +381,8 @@ bool Runtime::load(NvU8 *buf, int instance)
     NvDlaError e = NvDlaSuccess;
     ILoadable *i_loadable;
     Loadable *loadable;
+    NvU8 *blank = (NvU8*)malloc(256);
+    NvU8 *control = (NvU8*)malloc(256);
 
     bool ok = true;
 
@@ -283,6 +410,8 @@ bool Runtime::load(NvU8 *buf, int instance)
     {
         m_loaded_instance = 0;
     }
+
+
 
     m_task_entries   = loadable->getTaskListEntries();
     m_submit_entries = loadable->getSubmitListEntries();
@@ -321,8 +450,9 @@ bool Runtime::load(NvU8 *buf, int instance)
     // but some may trigger allocation and filling of
     // items/ events.
 
+
     for ( size_t mi = 0, MI = m_memory_entries.size(); mi != MI; ++mi ) {
-        PROPAGATE_ERROR_FAIL( loadMemory(loadable, &m_memory[mi]) );
+       PROPAGATE_ERROR_FAIL( loadMemory(loadable, &m_memory[mi]));
     }
 
     m_address.resize(m_address_entries.size());
@@ -378,7 +508,6 @@ bool Runtime::load(NvU8 *buf, int instance)
     }
 
     m_submit.resize(m_submit_entries.size());
-
     for ( size_t si = 0, SI = m_submit_entries.size(); si != SI; ++si ) {
         m_submit[si] = Submit(m_submit_entries[si]);
         if ( debugTasks() )
@@ -509,17 +638,19 @@ bool Runtime::fillTaskAddressList(Task *task, NvDlaTask *dla_task)
             return false;
         }
 
-        if (m_memory[memory_id].hMem == 0)
+        if (m_memory[memory_id].pVirtAddr == 0)
         {
             gLogError << __func__ << " ali=" << ali << " -> mem_id=" << memory_id << " has a null memory handle." << endl;
             return false;
         }
 
         Memory *mem = &m_memory[memory_id];
-        void *hMem   = mem->getHandle();
+        void *tpcAdd   = mem->getVirtAddr();
 
-        dla_task->address_list[ali].handle = hMem;
+
+        dla_task->address_list[ali].handle = tpcAdd;
         dla_task->address_list[ali].offset = m_address[address_list_entry_id].mEntry.offset;
+
     }
 
     return true;
@@ -561,7 +692,7 @@ bool Runtime::fillEMUTaskAddressList(Task *task, EMUTaskDescAccessor taskDescAcc
         }
 
         Memory *mem = &m_memory[memory_id];
-        void *hMem = mem->getVirtAddr();
+        void *hMem = mem->getHandle();
         NvU64         offset = m_address[address_list_entry_id].mEntry.offset;
 
         if ( mem->domain() == ILoadable::MemoryListEntry::domain_sram() )
@@ -584,14 +715,14 @@ bool Runtime::fillEMUTaskAddressList(Task *task, EMUTaskDescAccessor taskDescAcc
     return true;
 }
 
-bool Runtime::submit()
+bool Runtime::submit(std::string binName)
 {
     NvDlaError e = NvDlaSuccess;
-    e = submitInternal();
+    e = submitInternal(binName);
     return e == NvDlaSuccess;
 }
 
-NvDlaError Runtime::submitInternal()
+NvDlaError Runtime::submitInternal(std::string binName)
 {
     NvDlaError e = NvDlaSuccess;
     Task *task;
@@ -616,6 +747,7 @@ NvDlaError Runtime::submitInternal()
 
     // Force reload dependency graph contents from the loadable to
     // satisfy firmware requirements
+    //TODO make possible
     for ( size_t mi = 0, MI = m_memory_entries.size(); mi != MI; ++mi )
     {
         Memory* memory = &m_memory[mi];
@@ -660,10 +792,8 @@ NvDlaError Runtime::submitInternal()
                     std::memset(&dla_task, 0, sizeof(dla_task));
 
                     dla_task.task_id = task->id();
-
                     fillTaskAddressList(task, &dla_task);
-
-                    PROPAGATE_ERROR_FAIL( NvDlaSubmit(NULL, dev, &dla_task, 1) );
+                    PROPAGATE_ERROR_FAIL(TapascoTransmit(1, &dla_task, binName));
                 }
                 break;
                 case ILoadable::Interface_EMU1:
@@ -722,8 +852,12 @@ NvDlaError Runtime::allocateSystemMemory(void **phMem, NvU64 size, void **pData)
     void *hDla = getDLADeviceContext(m_loaded_instance);
 
     /* Allocate memory for network */
-    PROPAGATE_ERROR_FAIL( NvDlaAllocMem(NULL, hDla, phMem, pData, size, NvDlaHeap_System) );
+    tapasco.alloc(tpc_datablock_mem, (int)size);
+    *pData = 0x80000000+(void *)tpc_datablock_mem;
+    *phMem = malloc(size);
     m_hmem_memory_map.insert(std::make_pair(*phMem, *pData));
+    m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(*phMem, *pData, (int)size));
+
 
     return NvDlaSuccess;
 
@@ -789,17 +923,28 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
         void *hDla = getDLADeviceContext(m_loaded_instance);
         void *hMem = memory->getHandle();
 
-        if (hMem == 0) {
-            /* Allocate memory for network */
-            PROPAGATE_ERROR_FAIL( NvDlaAllocMem(m_dla_handle, hDla, &hMem, (void **)(&mapped_mem), size, NvDlaHeap_System) );
 
-            memory->setHandle(hMem);
-            memory->setVirtAddr(mapped_mem);
+        if (hMem == 0) {
+
+            //round up to 4K page size
+            size = size/4096;
+            size += 1;
+            size = size*4096;
+            NvU8 *zero = (NvU8*)malloc(size);
+            memset(zero,0,size);
+            tapasco.alloc(tpc_datablock_mem, size);
+            memory->setVirtAddr(0x80000000+ (void *)tpc_datablock_mem);
+            tapasco.copy_to((uint8_t*)zero,tpc_datablock_mem,size);
+
+
         }
         else {
             mapped_mem = memory->getVirtAddr();
+            tpc_datablock_mem = (tapasco_handle_t)(mapped_mem - 0x80000000);
         }
-
+        void *emu_mem = malloc(size);
+        memory->setHandle(emu_mem);
+        m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, memory->getVirtAddr(), (int)size));
         if ( memory->flags() & ILoadable::MemoryListEntry::flags_set() )
         {
 
@@ -827,16 +972,24 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
                 if ( memory->size() >= (NvU64)(offsets[ci] + content_blob.size) )
                 {
                     NvU8 *src = data;
-                    NvU8 *dst = (NvU8*)mapped_mem + offsets[ci];
 
-                    for ( size_t byte = 0; byte < content_blob.size; byte++ ) {
-                        dst[byte] = src[byte];
-                    }
+                    tapasco_handle_t offset_block;
+                    offset_block = tpc_datablock_mem + offsets[ci];
+                    tapasco.copy_to((uint8_t *)&data[0], offset_block, content_blob.size);
+                    emu_mem += offsets[ci];
+                    memcpy(emu_mem, data, content_blob.size);
+
+
+
                 }
                 else {
                     ORIGINATE_ERROR_FAIL(NvDlaError_InvalidState, "content blob too large for pool size");
                 }
             }
+        }
+        else
+        {
+            
         }
     }
 

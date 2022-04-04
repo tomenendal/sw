@@ -145,6 +145,17 @@ int main(int argc, char* argv[])
 
             testAppArgs.inputName = std::string(argv[++ii]);
         }
+        else if (std::strcmp(arg, "--binary") == 0)
+        {
+            if (ii+1 >= argc)
+            {
+                // Expecting another parameter
+                showHelp = true;
+                break;
+            }
+
+            testAppArgs.binaryName = std::string(argv[++ii]);
+        }
         else if (std::strcmp(arg, "--loadable") == 0)
         {
             if (ii+1 >= argc)
@@ -217,6 +228,7 @@ int main(int argc, char* argv[])
         NvDlaDebugPrintf("    -h                    print this help message\n");
         NvDlaDebugPrintf("    -s                    launch test in server mode\n");
         NvDlaDebugPrintf("    --image <file>        input jpg/pgm file\n");
+        NvDlaDebugPrintf("    --binary <file>       binary file to execute on RISC-V\n");
         NvDlaDebugPrintf("    --normalize <value>   normalize value for input image\n");
         NvDlaDebugPrintf("    --mean <value>        comma separated mean value for input image\n");
         NvDlaDebugPrintf("    --rawdump             dump raw dimg data\n");

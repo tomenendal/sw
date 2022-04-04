@@ -44,6 +44,7 @@ struct TestAppArgs
     std::string inputPath;
     std::string inputName;
     std::string loadableName;
+    std::string binaryName;
     NvS32 serverPort;
     NvU8 normalize_value;
     float mean[4];
@@ -53,6 +54,7 @@ struct TestAppArgs
         inputPath("./"),
         inputName(""),
         loadableName(""),
+        binaryName(""),
         serverPort(6666),
         normalize_value(1),
         mean{0.0, 0.0, 0.0, 0.0},

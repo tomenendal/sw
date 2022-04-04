@@ -59,8 +59,8 @@ NvDlaError setupBuffers(const TestAppArgs* appArgs, TestInfo* i);
 NvDlaError runTest(const TestAppArgs* appArgs, TestInfo* i);
 
 // TestUtils
-NvDlaError DIMG2DlaBuffer(const NvDlaImage* image, void** pBuffer);
-NvDlaError DlaBuffer2DIMG(void** pBuffer, NvDlaImage* image);
+NvDlaError DIMG2DlaBuffer(const NvDlaImage* image, TestInfo* i, void** pBuffer);
+NvDlaError DlaBuffer2DIMG(void** pBuffer, TestInfo* i, NvDlaImage* image);
 //NvDlaError createSync(NvU32 value, NvU32 condition, nvdla::ISync** sync);
 NvDlaError Tensor2DIMG(const TestAppArgs* appArgs, const nvdla::IRuntime::NvDlaTensor* pTDesc, NvDlaImage* image);
 NvDlaError createImageCopy(const TestAppArgs* appArgs, const NvDlaImage* in, const nvdla::IRuntime::NvDlaTensor* outTensorDesc, NvDlaImage* out);

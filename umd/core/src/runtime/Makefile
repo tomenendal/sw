@@ -26,10 +26,17 @@
 
 ROOT := $(TOP)
 
+
 TOOLCHAIN_PREFIX ?=
+
+LIBTAPASCO ?=
 
 ifeq ($(TOOLCHAIN_PREFIX),)
 $(error Toolchain prefix missing)
+endif
+
+ifeq ($(LIBTAPASCO),)
+$(error PATH to libtapasco missing)
 endif
 
 MODULE := libnvdla_runtime
@@ -41,10 +48,12 @@ BUILDDIR := $(BUILDOUT)/$(MODULE)
 LIB := $(BUILDDIR)/$(MODULE).so
 
 INCLUDES :=
-MODULE_OPTFLAGS ?= -Os
-MODULE_COMPILEFLAGS := -g -fPIC -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Werror-implicit-function-declaration
+MODULE_OPTFLAGS ?= -O0
+MODULE_COMPILEFLAGS := -g -fPIC -finline -W -Wall -I$(ROOT)/tapasco -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Werror-implicit-function-declaration
 MODULE_CFLAGS := --std=c99
 MODULE_CPPFLAGS := --std=c++11 -fexceptions -fno-rtti
+LINKING_FLAG := -ltapasco -lpthread -ldl -lrt -lpthread -L$(LIBTAPASCO)
+
 
 all:: $(LIB)
 
@@ -53,4 +62,4 @@ include rules.mk
 # the logic to compile and link stuff is in here
 $(LIB): $(ALLMODULE_OBJS)
 	@echo building $(MODULE)  $@
-	$(TOOLCHAIN_PREFIX)g++ -shared $(ALLMODULE_OBJS) -o $@
+	$(TOOLCHAIN_PREFIX)g++ -shared $(ALLMODULE_OBJS) -o $@ $(LINKING_FLAG)

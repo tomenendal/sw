@@ -664,6 +664,7 @@ NvDlaError runServer(const TestAppArgs* appArgs, TestInfo *testInfo)
     }
 
     PROPAGATE_ERROR_FAIL(startServer(appArgs, testInfo));
+    mainEventLoop(const_cast<TestAppArgs*>(appArgs),testInfo);
 
     while (testInfo->dlaServerRunning)
     {
