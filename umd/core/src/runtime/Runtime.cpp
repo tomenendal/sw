@@ -60,8 +60,7 @@
 #include "tapasco.hpp"
 #include <tuple>
 
-#define PE_ID 1751//48
-
+#define PE_ID 1751 //SWERV 46-orca
 #define BRAM_SIZE 0x80000
 #define PROGRAM_BRAM_SIZE (BRAM_SIZE - (BRAM_SIZE / 4))
 
@@ -229,12 +228,8 @@ NvDlaError Runtime::TapascoTransmit(NvU32 taskcount,NvDlaTask *pTasks, std::stri
         }
     }
 
-    //TAPASCO SEND
+    ////TAPASCO SEND
     size_t data_to_transfer = taskcount * NVDLA_MAX_BUFFERS_PER_TASK * sizeof(struct nvdla_mem_handle);
-    NvU8 *zero = (NvU8*)malloc(360);
-    memset(zero,0,360);
-    tpc_datablock_mem = 0xf0e50;
-    tapasco.copy_to((uint8_t*)zero,tpc_datablock_mem,360);
     tapasco.alloc(tpc_datablock_mem, data_to_transfer);
     tapasco.copy_to((uint8_t *)address_list, tpc_datablock_mem, data_to_transfer);
 
@@ -254,7 +249,7 @@ NvDlaError Runtime::TapascoTransmit(NvU32 taskcount,NvDlaTask *pTasks, std::stri
     uint64_t fpga_sum = -1;
     RetVal<uint64_t> retval(&fpga_sum);
     uint32_t a = (uint32_t)(tpc_datablock_mem+0x80000000);
-    int b = pTasks->num_addresses;
+    uint32_t b = (uint32_t)pTasks->num_addresses;
     auto job = tapasco.launch(PE_ID,
                               retval, // return value
                               program_buffer_in,
@@ -930,6 +925,8 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
             size = size/4096;
             size += 1;
             size = size*4096;
+            //make sure all memoryblocks are filled with zeros before
+            //some blocks only get filled by half with data and the rest needs to be zeros
             NvU8 *zero = (NvU8*)malloc(size);
             memset(zero,0,size);
             tapasco.alloc(tpc_datablock_mem, size);
@@ -944,7 +941,6 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
         }
         void *emu_mem = malloc(size);
         memory->setHandle(emu_mem);
-        m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, memory->getVirtAddr(), (int)size));
         if ( memory->flags() & ILoadable::MemoryListEntry::flags_set() )
         {
 
@@ -972,14 +968,16 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
                 if ( memory->size() >= (NvU64)(offsets[ci] + content_blob.size) )
                 {
                     NvU8 *src = data;
-
-                    tapasco_handle_t offset_block;
-                    offset_block = tpc_datablock_mem + offsets[ci];
-                    tapasco.copy_to((uint8_t *)&data[0], offset_block, content_blob.size);
-                    emu_mem += offsets[ci];
-                    memcpy(emu_mem, data, content_blob.size);
-
-
+                    //only copy data to where its needed
+                    if(content_blob.interface==nvdla::ILoadable::Interface_EMU1 or content_blob.interface==nvdla::ILoadable::Interface_NONE){
+                        void *emu_offset = emu_mem + offsets[ci];
+                        memcpy(emu_offset, data, content_blob.size);
+                    }
+                    if(content_blob.interface==nvdla::ILoadable::Interface_DLA1 or content_blob.interface==nvdla::ILoadable::Interface_NONE){
+                        tapasco_handle_t offset_block;
+                        offset_block = tpc_datablock_mem + offsets[ci];
+                        tapasco.copy_to((uint8_t *)&data[0], offset_block, content_blob.size);
+                    }
 
                 }
                 else {
@@ -989,7 +987,7 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
         }
         else
         {
-            
+            m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, memory->getVirtAddr(), (int)size));
         }
     }
 
