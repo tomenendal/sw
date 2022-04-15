@@ -58,12 +58,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "tapasco.hpp"
-#include <tuple>
-
-#define PE_ID 1748
-
-#define BRAM_SIZE 0x80000
-#define PROGRAM_BRAM_SIZE (BRAM_SIZE - (BRAM_SIZE / 4))
 
 
 using std::vector;
@@ -73,14 +67,8 @@ using std::endl;
 using std::map;
 using std::list;
 
-
-
 namespace nvdla
 {
-    using namespace std;
-    using namespace tapasco;
-    Tapasco tapasco;
-    tapasco_handle_t tpc_datablock_mem;
 
 IRuntime::IRuntime() { }
 IRuntime::~IRuntime() { }
@@ -95,9 +83,10 @@ void destroyRuntime(IRuntime *runtime)
 {
     priv::RuntimeFactory::deleteRuntime(runtime);
 }
+
 namespace priv
 {
-    std::string *binaryName;
+
 RuntimeFactory::RuntimePrivPair RuntimeFactory::newRuntime()
 {
     IRuntime *runtime;
@@ -175,37 +164,12 @@ Runtime::~Runtime()
     NvDlaClose(m_dla_device_handles[0]);
     NvDlaClose(m_dla_device_handles[1]);
 }
-void Runtime::read_binary_file(std::string filename, std::vector<char> &buffer) {
-    int fd = open(filename.c_str(), O_RDONLY);
-    struct stat sb;
-    fstat(fd, &sb);
-    char *buf = (char*)mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    buffer.insert(buffer.end(), buf, buf + sb.st_size);
-    munmap(buf, sb.st_size);
-    close(fd);
-    std::cout << "Finished reading binary file. Received " << buffer.size() << " bytes." << std::endl;
-}
 
-NvDlaError Runtime::TapascoCopyFrom(void* Buffer, void* Data, int size)
-{
-    tapasco_handle_t tmp_handle;
-    tmp_handle = (tapasco_handle_t)(Buffer - 0x80000000);
-    tapasco.copy_from(tmp_handle, (uint8_t *)Data, size);
-    return NvDlaSuccess;
-}
-
-NvDlaError Runtime::TapascoCopyTo(void* Buffer, void* Data, int size)
-{
-    tapasco_handle_t tmp_handle;
-    tmp_handle = (tapasco_handle_t)(Buffer - 0x80000000);
-    tapasco.copy_to((uint8_t *)Data, tmp_handle, size);
-    return NvDlaSuccess;
-}
-NvDlaError Runtime::TapascoTransmit(NvU32 taskcount,NvDlaTask *pTasks, std::string binName)
+NvDlaError Runtime::TapascoTransmit(NvU32 taskcount,NvDlaTask *pTasks)
 {
     //BUILD ADDRESS LIST STRUCT LIST
-    struct nvdla_copy_handle address_list[taskcount][NVDLA_MAX_BUFFERS_PER_TASK];
-    struct nvdla_copy_handle copy_list[taskcount][NVDLA_MAX_BUFFERS_PER_TASK];
+    struct nvdla_mem_handle address_list[taskcount][NVDLA_MAX_BUFFERS_PER_TASK];
+    struct nvdla_mem_handle copy_list[taskcount][NVDLA_MAX_BUFFERS_PER_TASK];
     uint32_t i;
 
     for (i = 0; i < taskcount; i++) {
@@ -213,75 +177,25 @@ NvDlaError Runtime::TapascoTransmit(NvU32 taskcount,NvDlaTask *pTasks, std::stri
         uint32_t j;
 
         for (j = 0; j < num_addresses; j++) {
-            //tmp_handle
-            uint32_t *tmp_handle = (uint32_t *)pTasks[i].address_list[j].handle;
-            address_list[i][j].handle[0] = (((uintptr_t)tmp_handle) & ((uintptr_t)0xFF000000))>>24;
-            address_list[i][j].handle[1] = (((uintptr_t)tmp_handle) & ((uintptr_t)0x00FF0000))>>16;
-            address_list[i][j].handle[2] = (((uintptr_t)tmp_handle) & ((uintptr_t)0x0000FF00))>>8;
-            address_list[i][j].handle[3] = (((uintptr_t)tmp_handle) & ((uintptr_t)0x000000FF));
-
-            //tmp_offset
-            uint64_t tmp_offset = pTasks[i].address_list[j].offset;
-            address_list[i][j].offset[0] = (tmp_offset&0xFF000000)>>24;
-            address_list[i][j].offset[1] = (tmp_offset&0x00FF0000)>>16;
-            address_list[i][j].offset[2] = (tmp_offset&0x0000FF00)>>8;
-            address_list[i][j].offset[3] = (tmp_offset&0x000000FF);
+            address_list[i][j].handle =  pTasks[i].address_list[j].handle;
+            address_list[i][j].offset = pTasks[i].address_list[j].offset;
         }
     }
 
     //TAPASCO SEND
-    struct dla_network_desc *network = (dla_network_desc *)malloc(sizeof(struct dla_network_desc));
-    union dla_operation_container *operation = (dla_operation_container *)malloc(sizeof(union dla_operation_container));
-    union dla_surface_container *surface = (dla_surface_container *)malloc(sizeof(union dla_surface_container));
+    volatile long address = 0x000080000010;
+    using namespace tapasco;
+    Tapasco tapasco;
+    size_t copied = 0;
     size_t data_to_transfer = taskcount * NVDLA_MAX_BUFFERS_PER_TASK * sizeof(struct nvdla_mem_handle);
-    tapasco.alloc(tpc_datablock_mem, data_to_transfer);
-    tapasco.copy_to((uint8_t *)address_list, tpc_datablock_mem, data_to_transfer);
-    tapasco.copy_from((tapasco_handle_t)pTasks[0].address_list[0].handle-0x80000000,(uint8_t *)network, sizeof(struct dla_network_desc));
-    tapasco.copy_from((tapasco_handle_t)pTasks[0].address_list[6].handle-0x80000000,(uint8_t *)operation, sizeof(union dla_operation_container));
-    tapasco.copy_from((tapasco_handle_t)pTasks[0].address_list[7].handle-0x80000000,(uint8_t *)surface, sizeof(union dla_surface_container));
-
-
-
-
-    std::vector<char> program_buffer;
-    read_binary_file(binName, program_buffer);
-
-    if (program_buffer.size() > PROGRAM_BRAM_SIZE) {
-        std::cout << "ERROR: Program exceeds BRAM size." << std::endl;
-        exit(1);
-    }
-
-    // Wrap the program buffer into local memory object
-    auto program_buffer_in = makeLocal(makeInOnly(
-            makeWrappedPointer(program_buffer.data(), program_buffer.size())
-    ));
-
-    uint64_t fpga_sum = -1;
-    RetVal<uint64_t> retval(&fpga_sum);
-    int a = (int)tpc_datablock_mem+0x80000000;
-    int b = pTasks->num_addresses;
-    auto job = tapasco.launch(PE_ID,
-                              retval, // return value
-                              program_buffer_in,
-                              a, // Arg 1
-                              b  // Arg 2
-    );
-    cout << "Waiting for RISC-V " << endl;
-    job();
-    cout << "RISC-V return value: " << fpga_sum << endl;
-
-    ///copy everything back
-    for(int i = 0; i < m_copyback_memory.size(); i++)
-    {   void *copyto = std::get<0>(m_copyback_memory[i]);
-        int size = std::get<2>(m_copyback_memory[i]);
-        void *copyfrom = std::get<1>(m_copyback_memory[i])-0x80000000;
-        tapasco.copy_from((tapasco_handle_t)copyfrom,(uint8_t *)copyto, size);
-    }
-    //tapasco.copy_from((tapasco_handle_t)m_memory[1].pVirtAddr-0x80000000,(uint8_t *)m_memory[1].hMem, m_memory[1].size());
-    //tapasco.copy_from((tapasco_handle_t)m_memory[11].pVirtAddr-0x80000000,(uint8_t *)m_memory[11].hMem, m_memory[11].size());
-    //tapasco.copy_from((tapasco_handle_t)m_memory[12].pVirtAddr-0x80000000,(uint8_t *)m_memory[12].hMem, m_memory[12].size());
-    //tapasco.copy_from((tapasco_handle_t)m_memory[13].pVirtAddr-0x80000000,(uint8_t *)m_memory[13].hMem, m_memory[13].size());
-
+    tapasco_handle_t handle_to;
+    tapasco.alloc(handle_to, taskcount * NVDLA_MAX_BUFFERS_PER_TASK * sizeof(struct nvdla_mem_handle));
+    tapasco.copy_to((uint8_t *)address_list, handle_to, data_to_transfer);
+    void *new_handle;
+    new_handle = (void *)handle_to;
+    //CONTROL COPY BACK
+    tapasco.copy_from(handle_to,(uint8_t *)copy_list,data_to_transfer);
+    tapasco.free(handle_to);
 
     return NvDlaSuccess;
 }
@@ -456,9 +370,10 @@ bool Runtime::load(NvU8 *buf, int instance)
     // but some may trigger allocation and filling of
     // items/ events.
 
-
+    //hier wird m_memory[516].hmem und m_memory[516].pVirtAddr NULL
+    // und m_memory[2].hmem und m_memory[2].pVirtAddr NULL
     for ( size_t mi = 0, MI = m_memory_entries.size(); mi != MI; ++mi ) {
-       PROPAGATE_ERROR_FAIL( loadMemory(loadable, &m_memory[mi]));
+       PROPAGATE_ERROR_FAIL( loadMemory(loadable, &m_memory[mi]) );
     }
 
     m_address.resize(m_address_entries.size());
@@ -654,7 +569,6 @@ bool Runtime::fillTaskAddressList(Task *task, NvDlaTask *dla_task)
         void *tpcAdd   = mem->getVirtAddr();
 
 
-
         dla_task->address_list[ali].handle = tpcAdd;
         dla_task->address_list[ali].offset = m_address[address_list_entry_id].mEntry.offset;
     }
@@ -698,7 +612,7 @@ bool Runtime::fillEMUTaskAddressList(Task *task, EMUTaskDescAccessor taskDescAcc
         }
 
         Memory *mem = &m_memory[memory_id];
-        void *hMem = mem->getHandle();
+        void *hMem = mem->getVirtAddr();
         NvU64         offset = m_address[address_list_entry_id].mEntry.offset;
 
         if ( mem->domain() == ILoadable::MemoryListEntry::domain_sram() )
@@ -721,14 +635,14 @@ bool Runtime::fillEMUTaskAddressList(Task *task, EMUTaskDescAccessor taskDescAcc
     return true;
 }
 
-bool Runtime::submit(std::string binName)
+bool Runtime::submit()
 {
     NvDlaError e = NvDlaSuccess;
-    e = submitInternal(binName);
+    e = submitInternal();
     return e == NvDlaSuccess;
 }
 
-NvDlaError Runtime::submitInternal(std::string binName)
+NvDlaError Runtime::submitInternal()
 {
     NvDlaError e = NvDlaSuccess;
     Task *task;
@@ -753,7 +667,6 @@ NvDlaError Runtime::submitInternal(std::string binName)
 
     // Force reload dependency graph contents from the loadable to
     // satisfy firmware requirements
-    //TODO make possible
     for ( size_t mi = 0, MI = m_memory_entries.size(); mi != MI; ++mi )
     {
         Memory* memory = &m_memory[mi];
@@ -802,7 +715,7 @@ NvDlaError Runtime::submitInternal(std::string binName)
                     fillTaskAddressList(task, &dla_task);
                     //struct nvdla_mem_handle address_list[num_tasks][NVDLA_MAX_BUFFERS_PER_TASK];
                     //nvdla_mem_handle *address_list = NvDlaSubmit(NULL, dev, &dla_task, num_tasks, &structsize);
-                    PROPAGATE_ERROR_FAIL(TapascoTransmit(1, &dla_task, binName));
+                    PROPAGATE_ERROR_FAIL( TapascoTransmit(1, &dla_task));
                 }
                 break;
                 case ILoadable::Interface_EMU1:
@@ -862,18 +775,10 @@ NvDlaError Runtime::allocateSystemMemory(void **phMem, NvU64 size, void **pData)
 
     /* Allocate memory for network */
     //PROPAGATE_ERROR_FAIL( NvDlaAllocMem(NULL, hDla, phMem, pData, size, NvDlaHeap_System) );
-    tapasco.alloc(tpc_datablock_mem, (int)size);
-    *pData = 0x80000000+(void *)tpc_datablock_mem;
-    *phMem = malloc(size);
-    //void *pVA = NULL;
-    //pVA = malloc(size);
-    //*pData = pVA;
+    void *pVA = NULL;
+    pVA = malloc(size);
+    *pData = pVA;
     m_hmem_memory_map.insert(std::make_pair(*phMem, *pData));
-    //m_hmem_size_map.insert(std::make_pair(*phMem, (int)size));
-    m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(*phMem, *pData, (int)size));
-
-    //tapasco.copy_to((uint8_t *)&pData, tpc_datablock_mem, (int)size);
-    //*pData = 0x80000000+(void *)tpc_datablock_mem;
 
     return NvDlaSuccess;
 
@@ -918,20 +823,7 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
 {
     NvDlaError e = NvDlaSuccess;
     NvU8 *mem;
-    NVDLA_UNUSED(mem);/*
-    std::string blob_name = "task-0-surf_list";
-    NvU8 *add = l->mSymbols[blob_name].data;
-
-    union dla_surface_container surface_a;
-    union dla_surface_container surface_b;
-    union dla_surface_container surface_c;
-    union dla_surface_container surface_d;
-    memcpy(&surface_a, (void*)add, sizeof(union dla_surface_container));
-    memcpy(&surface_b, (void*)add+sizeof(union dla_surface_container), sizeof(union dla_surface_container));
-    memcpy(&surface_c, (void*)add+sizeof(union dla_surface_container)+2, sizeof(union dla_surface_container));
-    memcpy(&surface_d, (void*)add+sizeof(union dla_surface_container)*3, sizeof(union dla_surface_container));
-*/
-    //tapasco_handle_t tpc_datablock_mem;
+    NVDLA_UNUSED(mem);
 
     bool ok = false;
     if ( ! (memory->flags() & ILoadable::MemoryListEntry::flags_alloc()) ) {
@@ -952,33 +844,22 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
         void *hDla = getDLADeviceContext(m_loaded_instance);
         void *hMem = memory->getHandle();
 
-
         if (hMem == 0) {
             /* Allocate memory for network */
             //PROPAGATE_ERROR_FAIL( NvDlaAllocMem(m_dla_handle, hDla, &hMem, (void **)(&mapped_mem), size, NvDlaHeap_System) );
             //PROPAGATE_ERROR_FAIL( TapascoAllocMem(m_dla_handle, hDla, &hMem, (void **)(&mapped_mem), size, NvDlaHeap_System) );
 
-            //mapped_mem = malloc((int)size);
-            //tapasco_handle_t tpc_datablock_mem;
-            //tapasco.alloc(tpc_mapped_mem, size);
-            //tapasco.free(tpc_mapped_mem);
-
-            tapasco.alloc(tpc_datablock_mem, size);
-            memory->setVirtAddr(0x80000000+ (void *)tpc_datablock_mem);
-
-
-
+            mapped_mem = malloc((int)size);
+            //tapasco_handle_t handle_to;
+            //tapasco.alloc(handle_to, size);
 
             //memory->setHandle(hMem);
-            //memory->setVirtAddr(mapped_mem);
+            memory->setVirtAddr(mapped_mem);
         }
         else {
             mapped_mem = memory->getVirtAddr();
-            //flag needed for no tapasco alloc
         }
-        void *emu_mem = malloc(size);
-        memory->setHandle(emu_mem);
-        m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, memory->getVirtAddr(), (int)size));
+
         if ( memory->flags() & ILoadable::MemoryListEntry::flags_set() )
         {
 
@@ -986,7 +867,6 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
                 ORIGINATE_ERROR_FAIL(NvDlaError_InvalidState,
                                      "mismatch on num content blobs vs. num offsets in memory id");
             }
-            //void *emu_mem = malloc(size);
             vector<string> &contents = memory->contents();
             vector<uint64_t> &offsets  = memory->offsets();
 
@@ -1007,101 +887,16 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
                 if ( memory->size() >= (NvU64)(offsets[ci] + content_blob.size) )
                 {
                     NvU8 *src = data;
-                    //NvU8 *dst = (NvU8*)mapped_mem + offsets[ci];
-                    if (offsets[ci]!=0)
-                    {
-                        //ORIGINATE_ERROR_FAIL(NvDlaError_InvalidState, "offset found");
+                    NvU8 *dst = (NvU8*)mapped_mem + offsets[ci];
+
+                    for ( size_t byte = 0; byte < content_blob.size; byte++ ) {
+                        dst[byte] = src[byte];
                     }
-                    tpc_datablock_mem += offsets[ci];
-                    tapasco.copy_to((uint8_t *)&data[0], tpc_datablock_mem, content_blob.size);
-
-                    emu_mem += offsets[ci];
-                    memcpy(emu_mem, data, content_blob.size);
-
-                    /*union dla_quad_surface_container local;
-                    union dla_quad_surface_container fpga;
-                    memcpy(&local, &data[0], sizeof(union dla_quad_surface_container));
-                    tapasco.copy_from((tapasco_handle_t)(0xe9680), (uint8_t *)&fpga, sizeof(union dla_quad_surface_container));
-
-                     */
-
-                    union dla_surface_container surface;
-                    union dla_surface_container surface_a;
-                    union dla_surface_container surface_b;
-                    union dla_surface_container surface_c;
-                    union dla_operation_container operation;
-                    union dla_operation_container operation_a;
-                    union dla_operation_container operation_b;
-                    union dla_operation_container operation_c;
-                    /*union dla_surface_container surface_b;
-                    union dla_surface_container surface_c;
-                    union dla_surface_container surface_d;*/
-                    if(content_blob.name == "task-0-surf_list")
-                    {
-                        memcpy(&surface, (void*)src, sizeof(union dla_surface_container));
-                        memcpy(&surface_a, (void*)src+sizeof(union dla_surface_container), sizeof(union dla_surface_container));
-                        memcpy(&surface_b, (void*)src+sizeof(union dla_surface_container)*2, sizeof(union dla_surface_container));
-                        memcpy(&surface_c, (void*)src+sizeof(union dla_surface_container)*3, sizeof(union dla_surface_container));
-                    }
-                    if(content_blob.name == "task-0-op_list")
-                    {
-                        memcpy(&operation, (void*)src, sizeof(union dla_operation_container));
-                        memcpy(&operation_a, (void*)src+sizeof(union dla_operation_container), sizeof(union dla_operation_container));
-                        memcpy(&operation_b, (void*)src+sizeof(union dla_operation_container)*2, sizeof(union dla_operation_container));
-                        memcpy(&operation_c, (void*)src+sizeof(union dla_operation_container)*3, sizeof(union dla_operation_container));
-                    }
-
-                    /*memcpy(&surface_b, (void*)0x78d670+sizeof(union dla_surface_container), sizeof(union dla_surface_container));
-                    memcpy(&surface_c, (void*)0x78d670+sizeof(union dla_surface_container)+2, sizeof(union dla_surface_container));
-                    memcpy(&surface_d, (void*)0x78d670+sizeof(union dla_surface_container)*3, sizeof(union dla_surface_container));*/
-                    //tapasco.copy_from((tapasco_handle_t)(0xe9680), (uint8_t *)&surface_a, sizeof(union dla_surface_container));
-                    /*tapasco.copy_from((tapasco_handle_t)(0xe9680+sizeof(union dla_surface_container)), (uint8_t *)&surface_b, sizeof(union dla_surface_container));
-                    tapasco.copy_from((tapasco_handle_t)(0xe9680+sizeof(union dla_surface_container)*2), (uint8_t *)&surface_c, sizeof(union dla_surface_container));
-                    tapasco.copy_from((tapasco_handle_t)(0xe9680+sizeof(union dla_surface_container)*3), (uint8_t *)&surface_d, sizeof(union dla_surface_container));*/
-
-                    /*if(content_blob.interface==nvdla::ILoadable::Interface_EMU1 or content_blob.interface==nvdla::ILoadable::Interface_NONE){
-                        if(ci==0) {
-                            ///handle for easy EMU access
-
-                            memory->setHandle(emu_mem);
-                        }
-                        else{
-                            emu_mem += offsets[ci];
-                        }
-                        memcpy(emu_mem, data, content_blob.size);
-                        m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, (void *)tpc_datablock_mem+0x80000000, (int)size));
-                    }
-                    else{
-                        free(emu_mem);
-                    }*/
-
-
-
-                    //tapasco.alloc(tpc_datablock_mem, content_blob.size);
-                    //tapasco.copy_to((uint8_t *)&data[0], tpc_datablock_mem, content_blob.size);
-                    //memory->setVirtAddr(0x80000000+ (void *)tpc_datablock_mem);
-
-                    /*for ( size_t byte = 0; byte < content_blob.size; byte++ ) {
-                        //dst[byte] = src[byte];
-                        //tapasco.alloc(tpc_datablock_mem, sizeof(data[byte]));
-                        tapasco.copy_to((uint8_t *)&data[byte], tpc_datablock_mem, sizeof(data[byte]));
-                        if (byte == 0)
-                        {
-                            memory->setVirtAddr(0x80000000+ (void *)tpc_datablock_mem);
-                        }
-
-                    }*/
                 }
                 else {
                     ORIGINATE_ERROR_FAIL(NvDlaError_InvalidState, "content blob too large for pool size");
                 }
             }
-        }
-        else
-        {
-            //void *emu_mem = malloc(size);
-            //memory->setHandle(emu_mem);
-            //m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, (void *)tpc_datablock_mem+0x80000000, (int)size));
         }
     }
 

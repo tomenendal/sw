@@ -29,14 +29,8 @@ ROOT := $(TOP)
 
 TOOLCHAIN_PREFIX ?=
 
-LIBTAPASCO ?=
-
 ifeq ($(TOOLCHAIN_PREFIX),)
 $(error Toolchain prefix missing)
-endif
-
-ifeq ($(LIBTAPASCO),)
-$(error PATH to libtapasco missing)
 endif
 
 MODULE := libnvdla_runtime
@@ -52,7 +46,7 @@ MODULE_OPTFLAGS ?= -O0
 MODULE_COMPILEFLAGS := -g -fPIC -finline -W -Wall -I$(ROOT)/tapasco -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Werror-implicit-function-declaration
 MODULE_CFLAGS := --std=c99
 MODULE_CPPFLAGS := --std=c++11 -fexceptions -fno-rtti
-LINKING_FLAG := -ltapasco -lpthread -ldl -lrt -lpthread -L$(LIBTAPASCO)
+LINKING_FLAG := -ltapasco -lpthread -ldl -lrt -lpthread -L/home/stud/lt25geja/september/tapasco/workspace/build/libtapasco
 
 
 all:: $(LIB)
