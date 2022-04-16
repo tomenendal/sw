@@ -31,7 +31,7 @@ MODULE_SRCDIR := $(MODULE)
 #MODULE_CC := $(TOOLCHAIN_PREFIX)gcc
 #endif
 #ifeq ($(MODULE_LD),)
-#MODULE_LD := $(TOOLCHAIN_PREFIX)ld
+MODULE_LD :=ld
 #endif
 
 $(info MODULE_CC $(MODULE_CC))
