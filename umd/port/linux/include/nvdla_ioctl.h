@@ -51,10 +51,11 @@
  *
  */
 struct nvdla_mem_handle {
-    __u32 handle;
-    __u32 reserved;
+    void* handle;
+    //__u32 reserved;
     __u64 offset;
 };
+
 
 /**
  * struct nvdla_ioctl_submit_task structure for single task information
@@ -98,7 +99,7 @@ struct nvdla_submit_args {
  * @size        size of buffer to allocate
  */
 struct nvdla_gem_create_args {
-    __u32 handle;
+    void* handle;
     __u32 flags;
     __u64 size;
 };

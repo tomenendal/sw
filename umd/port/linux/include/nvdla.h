@@ -33,7 +33,7 @@
 
 struct NvDlaMemHandleRec{
     NvS32 fd;
-    NvS32 prime_handle;
+    void* prime_handle;
 };
 typedef struct NvDlaMemHandleRec* NvDlaMemHandle;
 
