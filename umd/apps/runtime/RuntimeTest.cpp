@@ -240,10 +240,10 @@ NvDlaError setupOutputBuffer
     pOutputImage = i->outputImage;
     if (i->outputImage == NULL)
         ORIGINATE_ERROR_FAIL(NvDlaError_BadParameter, "NULL Output image");
-    PROPAGATE_ERROR_FAIL(Tensor2DIMG(appArgs, &tDesc, pOutputImage)); //new from prepareOutputTensor
+    //skip prepareOutputTensor call to use TestInfo inside DIMG2DlaBuffer
+    //Access runtime functions from there with given TestInfo
+    PROPAGATE_ERROR_FAIL(Tensor2DIMG(appArgs, &tDesc, pOutputImage));
     PROPAGATE_ERROR_FAIL(DIMG2DlaBuffer(pOutputImage, i, pOutputBuffer));
-    //PROPAGATE_ERROR_FAIL(runtime->TapascoCopyTo(*pOutputBuffer,pOutputImage->m_pData, pOutputImage->m_meta.size)); //DIMG2DlaBuffer skip to access runtime functions
-    //PROPAGATE_ERROR_FAIL(prepareOutputTensor(&tDesc, pOutputImage, pOutputBuffer, appArgs));
 
     if (!runtime->bindOutputTensor(0, hMem))
         ORIGINATE_ERROR_FAIL(NvDlaError_BadParameter, "runtime->bindOutputTensor() failed");

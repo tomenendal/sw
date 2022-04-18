@@ -145,6 +145,7 @@ int main(int argc, char* argv[])
 
             testAppArgs.inputName = std::string(argv[++ii]);
         }
+	//include binary parameter
         else if (std::strcmp(arg, "--binary") == 0)
         {
             if (ii+1 >= argc)

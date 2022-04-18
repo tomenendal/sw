@@ -43,9 +43,9 @@ NvDlaError DIMG2DlaBuffer(const NvDlaImage* image, TestInfo* i, void** pBuffer)
 {
     if (!image || !(*pBuffer))
         ORIGINATE_ERROR(NvDlaError_BadParameter);
+    //use new TestInfo to call TaPaSCo-Transfers
     nvdla::IRuntime* runtime = i->runtime;
     runtime->TapascoCopyTo(*pBuffer, image->m_pData, image->m_meta.size);
-    image->printBuffer(true);
 
 
     return NvDlaSuccess;
@@ -57,7 +57,6 @@ NvDlaError DlaBuffer2DIMG(void** pBuffer, TestInfo* i, NvDlaImage* image)
         ORIGINATE_ERROR(NvDlaError_BadParameter);
 
     memcpy(image->m_pData, i->outputHandle, image->m_meta.size);
-    image->printBuffer(true);
 
     return NvDlaSuccess;
 }

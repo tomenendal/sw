@@ -42,10 +42,12 @@ int main()
     csr_set(mtvec, trap_entry);
     csr_set(mie, MIE_MTIE);
     csr_set(mstatus, MSTATUS_MPP | MSTATUS_MIE);
-
+	
+    //get start address and size from address_list to read it correctly
     uint32_t add_list_start = readFromCtrl(ARG1);
     uint32_t num_add = readFromCtrl(ARG2);
     uint32_t complete = (uint32_t)nvdla_task_submit(add_list_start,num_add);
+    //return nvdla_complete value
     writeToCtrl(RETL, complete);
 
     setIntr();

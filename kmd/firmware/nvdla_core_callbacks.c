@@ -117,6 +117,8 @@ uint32_t dla_reg_read(void *driver_context, uint32_t addr)
 
 void intr_trap(void)
 {
+    //call dla_trap_call to start the interrupt handler and get the nvdla_dev back
+    //to set its irq value
     struct riscv_device *nvdla_dev = dla_trap_call();
     nvdla_dev->irq = 1;
 }
@@ -218,6 +220,7 @@ int32_t nvdla_task_submit(int list_start,int address_count)
 
 	int32_t err = 0;
 	uint32_t task_complete = 0;
+	//initialize the device
     struct riscv_device *nvdla_dev = nvdla_init();
     struct riscv_task *task = malloc(sizeof(struct riscv_task));
 
@@ -225,12 +228,14 @@ int32_t nvdla_task_submit(int list_start,int address_count)
     uint32_t task_count = 1;
     uint8_t *read_byte = (uint8_t *)address;
     uint8_t ra,rb,rc,rd;
+    //seperate struct for handles and offsets for smaller structs
     struct nvdla_handle *handles = malloc(address_count * sizeof(struct nvdla_handle));
     struct nvdla_offset *offsets = malloc(address_count * sizeof(struct nvdla_offset));
     volatile uint32_t *mem_handles = (uint32_t *)handles;
     volatile uint32_t *mem_offsets = (uint32_t *)offsets;
     uint32_t j;
 
+    //read and seperate the given address_list in 8bit blocks 
     for (j = 0; j < address_count; j++) {
         read_byte = (uint8_t *)address;
         ra = read_byte[0]; rb = read_byte[1]; rc = read_byte[2]; rd = read_byte[3];
@@ -261,7 +266,7 @@ int32_t nvdla_task_submit(int list_start,int address_count)
 	}
 
 	while (1) {
-
+	    //only execute dla_process_events when an interrupt has occurred
             if(nvdla_dev->irq==1)
             {
                 nvdla_dev->irq = 0;

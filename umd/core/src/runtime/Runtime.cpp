@@ -60,7 +60,7 @@
 #include "tapasco.hpp"
 #include <tuple>
 
-#define PE_ID 1751 //SWERV 1746=orca
+#define PE_ID 1751 //for SweRV //1746 //for ORCA
 #define BRAM_SIZE 0x20000
 #define PROGRAM_BRAM_SIZE (BRAM_SIZE - (BRAM_SIZE / 4))
 
@@ -642,7 +642,8 @@ bool Runtime::fillTaskAddressList(Task *task, NvDlaTask *dla_task)
         Memory *mem = &m_memory[memory_id];
         void *tpcAdd   = mem->getVirtAddr();
 
-
+	//fill the address_list for the dla core with the VirtAddr address
+	//these are the addresses from the fpga memory
         dla_task->address_list[ali].handle = tpcAdd;
         dla_task->address_list[ali].offset = m_address[address_list_entry_id].mEntry.offset;
 
@@ -695,7 +696,8 @@ bool Runtime::fillEMUTaskAddressList(Task *task, EMUTaskDescAccessor taskDescAcc
             hMem = 0;
             offset  = 0;
         }
-
+	//fill the address_list for the emulator with the hMem addresses
+	//these are the addresses from the host memory
         *((void **)taskDescAcc.addressList(ali).hMem()) = hMem;
         *taskDescAcc.addressList(ali).offset() = offset;
 
@@ -850,6 +852,8 @@ NvDlaError Runtime::allocateSystemMemory(void **phMem, NvU64 size, void **pData)
     *pData = 0x80000000+(void *)tpc_datablock_mem;
     *phMem = malloc(size);
     m_hmem_memory_map.insert(std::make_pair(*phMem, *pData));
+    //memory blocks that are allocated from RuntimeTest are tensors and respectively input and output images
+    //these need to be copied back and are tracked here
     m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(*phMem, *pData, (int)size));
 
 
@@ -935,6 +939,7 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
 
         }
         else {
+		//this block already exists
             mapped_mem = memory->getVirtAddr();
             tpc_datablock_mem = (tapasco_handle_t)(mapped_mem - 0x80000000);
         }
@@ -986,6 +991,8 @@ NvDlaError Runtime::loadMemory(Loadable *l, Memory *memory)
         }
         else
         {
+		//these memory-blocks are made to be filled with the cores output
+		//thus they shall be copied back and are tracked here
             m_copyback_memory.insert(m_copyback_memory.end(),std::make_tuple(emu_mem, memory->getVirtAddr(), (int)size));
         }
     }

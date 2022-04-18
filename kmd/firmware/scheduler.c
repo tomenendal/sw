@@ -52,10 +52,9 @@ dla_read_address_list(struct dla_engine *engine)
 void*
 dla_trap_call(void)
 {
+    //give back the used nvdla_dev and call the interrupt handler
     struct dla_engine *engine;
     engine = dla_get_engine();
-    //struct riscv_device *nvdla_dev = (struct riscv_device *)(engine->driver_context);
-    //nvdla_dev->irq = 1;
     dla_isr_handler(dla_get_engine());
     return engine->driver_context;
 }
