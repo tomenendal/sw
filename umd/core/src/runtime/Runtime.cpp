@@ -742,7 +742,6 @@ NvDlaError Runtime::submitInternal(std::string binName)
 
     // Force reload dependency graph contents from the loadable to
     // satisfy firmware requirements
-    //TODO make possible
     for ( size_t mi = 0, MI = m_memory_entries.size(); mi != MI; ++mi )
     {
         Memory* memory = &m_memory[mi];

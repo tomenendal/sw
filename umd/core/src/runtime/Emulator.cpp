@@ -187,41 +187,6 @@ NvDlaError Emulator::processTask(NvU8* task_mem, std::vector<NvU8*> addressList)
 
     NvU8*  operation_container_0        = addressList[*network_desc.operationDescIndex()];
     NvU8*  operation_buffer_container_0 = addressList[*network_desc.operationBufferDescIndex()];
-    //TestInfo* i;
-    /*IRuntime* runtime = createRuntime();
-    std::vector<NvU8*> copyList = addressList;
-    struct dla_network_desc *network = (dla_network_desc *)malloc(sizeof(struct dla_network_desc));
-    //runtime->tapasco.copy_from( (tapasco_handle_t)(0x000e9000), (uint8_t *)network, sizeof(struct dla_network_desc));
-    runtime->TapascoCopyFrom(addressList[0], network, sizeof(struct dla_network_desc));
-    union dla_surface_container read_surface;
-    union dla_operation_container read_operation;
-
-
-
-    // 0 - network descriptor
-    EMUNetworkDescAccessor network_desc = emu_if->networkDescAccessor(addressList[0]);
-    NvU16* numOperationsAddress = network_desc.numOperations();
-    NvU16 numOperations = network->dependency_graph_index;
-    NvS16* OpDescIndexAddress = network_desc.operationDescIndex();
-    NvS16 OpDescIndex = network->operation_desc_index;
-    NvS16* OpBufferDescIndexAddress = network_desc.operationBufferDescIndex();
-    NvS16 OpBufferDescIndex = network->surface_desc_index;
-    NvU8* operation_container_0;
-    NvU8* operation_buffer_container_0;
-
-    //runtime->TapascoCopyFrom(numOperationsAddress, &numOperations, 2);
-    //runtime->TapascoCopyFrom(OpDescIndexAddress, &OpDescIndex, 2);
-    //runtime->TapascoCopyFrom(OpBufferDescIndexAddress, &OpBufferDescIndex, 2);
-    runtime->TapascoCopyFrom(addressList[OpBufferDescIndex], &read_surface, sizeof(union dla_surface_container));
-    runtime->TapascoCopyFrom(addressList[OpDescIndex], &read_operation, sizeof(union dla_operation_container));
-    operation_container_0 = (NvU8*)read_operation.bdma_op.num_transfers;
-    operation_buffer_container_0 = (NvU8*)read_surface.bdma_surface.source_type;*/
-    //runtime->TapascoCopyFrom(addressList[OpDescIndex], operation_container_0, 1);
-    //runtime->TapascoCopyFrom(addressList[OpBufferDescIndex], operation_buffer_container_0, 1);
-
-    //NvU8*  operation_container_0        = addressList[*network_desc.operationDescIndex()];
-    //NvU8*  operation_buffer_container_0 = addressList[*network_desc.operationBufferDescIndex()];
-
 
     for ( NvU16 op = 0; op < numOperations; ++op)
     {

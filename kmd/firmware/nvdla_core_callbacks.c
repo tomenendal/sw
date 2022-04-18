@@ -99,7 +99,6 @@ void dla_reg_write(void *driver_context, uint32_t addr, uint32_t reg)
 
     uint32_t volatile * const p_reg = (uint32_t *) (nvdla_dev->base + addr);
     *p_reg = (uint32_t)reg;
-    //asm volatile("sw %0, 0(%1)" :: "r"(reg), "r"(nvdla_dev->base + addr));
 }
 
 uint32_t dla_reg_read(void *driver_context, uint32_t addr)
@@ -142,7 +141,6 @@ static int32_t dla_read_dma_address(void *driver_context, void *task_data,
     memcpy(dst, &handles[index].handle, sizeof(struct nvdla_handle));
     uint64_t *tmp = (uint64_t *)dst;
     tmp[0] += offsets[index].offset;
-	//*dst = *dst + handles[index].offset;
 
 	return ret;
 }
@@ -259,11 +257,8 @@ int32_t nvdla_task_submit(int list_start,int address_count)
 
 	err = dla_execute_task(nvdla_dev->engine_context, (void *)task, nvdla_dev->config_data);
 	if (err) {
-		//pr_err("Task execution failed\n");
 		return err;
 	}
-
-	//pr_debug("Wait for task complete\n");
 
 	while (1) {
 
@@ -278,7 +273,6 @@ int32_t nvdla_task_submit(int list_start,int address_count)
 
 	}
 
-	//pr_debug("Task complete\n");
 	dla_clear_task(nvdla_dev->engine_context);
 	return task_complete;
 }

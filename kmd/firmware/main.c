@@ -39,9 +39,8 @@ void trap() {
 
 int main()
 {
-    //enable interrupts
-    csr_set(mtvec, trap_entry); //Set the machine trap vector (../common/trap.S) //I use GCC int function, hopefully works too!
-    csr_set(mie, MIE_MTIE); //Enable machine timer interrupts
+    csr_set(mtvec, trap_entry);
+    csr_set(mie, MIE_MTIE);
     csr_set(mstatus, MSTATUS_MPP | MSTATUS_MIE);
 
     uint32_t add_list_start = readFromCtrl(ARG1);
