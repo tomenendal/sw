@@ -1,1 +1,0 @@
-{"rustc":14088978341743255589,"features":"","target":0,"profile":0,"path":0,"deps":[[3704508155057735533,"build_script_build",false,2388957637794193105]],"local":[{"RerunIfChanged":{"output":"release/build/tapasco-ba8e94ed6a12e4bc/output","paths":["src/ffi.rs","src/status_core.proto"]}}],"rustflags":[],"metadata":0,"config":0}

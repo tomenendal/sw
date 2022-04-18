@@ -1,2 +1,0 @@
-/usr/bin/ar qc libtapasco.a  CMakeFiles/tapasco.dir/unused.c.o
-/usr/bin/ranlib libtapasco.a

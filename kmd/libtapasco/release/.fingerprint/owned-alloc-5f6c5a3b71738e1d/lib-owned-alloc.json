@@ -1,1 +1,0 @@
-{"rustc":14088978341743255589,"features":"[]","target":16490332030667538582,"profile":15731498110420809606,"path":9005366227516574381,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"release/.fingerprint/owned-alloc-5f6c5a3b71738e1d/dep-lib-owned-alloc"}}],"rustflags":["--print=native-static-libs"],"metadata":13721143845229449183,"config":0}
